@@ -10,8 +10,13 @@ try {
   );
 }
 
-const sourceDirectory =
-  config.projectDirectory || process.cwd().replace(/\\/g, "/");
+const sourceDirectory = config.projectDirectory
+  ? fspath.resolve(process.cwd(), config.projectDirectory).replace(/\\/g, "/")
+  : process.cwd().replace(/\\/g, "/");
+const outputDirectory = config.outputDirectory
+  ? fspath.resolve(config.outputDirectory).replace(/\\/g, "/")
+  : process.cwd().replace(/\\/g, "/");
+
 const sourceDirectoryRegex = new RegExp(`${sourceDirectory}/src/`);
 
 const includePattern = new RegExp(config.includePattern || ".ts$");
@@ -42,7 +47,7 @@ function getTsConfigPaths(path) {
   let tsconfig = {};
 
   try {
-    tsconfig = require(config.tsconfig || `${path}/tsconfig.json`);
+    tsconfig = require(fspath.resolve(path, config.tsconfig));
   } catch (error) {
     console.warn('tsconfig failed to load: ', error);
     return mapping;
@@ -196,13 +201,21 @@ const graph = fileList
 const nodes = createNodes(graph);
 const edges = createEdges(graph);
 
-fs.writeFileSync("depgraph.data.js", `\
+if (!fs.existsSync(outputDirectory)) {
+  fs.mkdirSync(outputDirectory, { recursive: true });
+}
+
+fs.writeFileSync(
+  fspath.join(outputDirectory, "depgraph.data.js"), `\
 const nodes = ${JSON.stringify(nodes)};
 const edges = ${JSON.stringify(edges)};
 `);
 
 const runtime = __dirname.replace(/\\/g, "/");
 
-fs.copyFileSync(`${runtime}/depgraph.html`, "./depgraph.html");
+fs.copyFileSync(
+  fspath.join(runtime, "depgraph.html"),
+  fspath.join(outputDirectory, "depgraph.html")
+);
 
-console.log("Open depgraph.html to view the dependency graph");
+console.log(`Open ${fspath.join(outputDirectory, "depgraph.html").replace(/\\/g, "/")} to view the dependency graph`);
